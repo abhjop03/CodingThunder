@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, redirect
 from flask_sqlalchemy import SQLAlchemy
 from datetime import datetime
+import bcrypt
 import json
 import sqlite3
 
@@ -37,10 +38,10 @@ class Post(db.Model):
     post_date = db.Column(db.String(20), nullable=True)
     
     
-class SignupDetails(db.Model):
+class Registration(db.Model):
     srno = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    frist_name = db.Column(db.String(30), nullable=False)
-    last_lame = db.Column(db.String(30), nullable=False)
+    first_name = db.Column(db.String(30), nullable=False)
+    last_name = db.Column(db.String(30), nullable=False)
     gender = db.Column(db.String(12), nullable=False)
     phone_no = db.Column(db.Integer, nullable=False)
     birth_date = db.Column(db.String(12), nullable=False)
@@ -74,7 +75,8 @@ def Contact():
         message = request.form.get('message')
         email = request.form.get('email')
 
-        entry = Contacts(contact_name=name, contact_phone_num=phone_num, contact_date=datetime.now(), contact_message=message, contact_email=email)
+        entry = Contacts(contact_name=name, contact_phone_num=phone_num, contact_date=datetime.now(),
+                         contact_message=message, contact_email=email)
         db.session.add(entry)
         db.session.commit()
 
@@ -100,21 +102,28 @@ def signUp():
     msg = ''
     if (request.method == 'POST' and 'email' in request.form and 'password' in request.form):
         password = request.form['password']
-        email = request.form['email']
+        reg_email = request.form['email']
         firstName = request.form['firstName']
         lastName = request.form['lastName']
         gender = request.form['inlineRadio']
         phoneNo = request.form['phoneNumber']
         birthDate = request.form['birthdayDate']
+        subject = request.form['chooseSubject']
+        password_hash = bcrypt.hashpw(password.encode('utf-8'), salt)
         # Query to check the email already available in database
-        existing_email = SignupDetails.query.filter_by(email=email).first()
+        existing_email = Registration.query.filter_by(email=reg_email).first()
         print(existing_email)
         if existing_email == None:
-            entryPost = Signup_details(email=email, password=password, fristName=firstName, lastName=lastName, gender=gender, phoneNo=phoneNo, birthDate=birthDate, subject=subject, date=datetime.now())
-            db.session.add(entryPost)
+            entryReg = Registration(email=reg_email, password=password_hash, first_name=firstName,
+                                      last_name=lastName, gender=gender, phone_no=phoneNo, birth_date=birthDate,
+                                      subject=subject, date=datetime.now())
+            db.session.add(entryReg)
             db.session.commit()
             msg = 'You have successfully registered !'
-            return redirect('/login', params = params, registration_succ_msg = msg)
+            return render_template('login.html', params = params, registration_succ_msg = msg)
+        else:
+            msg = 'Email id already Exists'
+            return render_template('signup.html', params = params, email_exists=msg)
     elif request.method == 'POST':
         msg = 'Please fill out the form !'
     return render_template('signup.html', params = params, msg = msg)
